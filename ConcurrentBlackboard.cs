@@ -32,7 +32,7 @@ public class ConcurrentBlackboard<TKey> where TKey : notnull
     {
         value = default;
         return _buckets.TryGetValue(typeof(TValue), out var storage) &&
-               ((Storage<TKey, TValue>)storage).Remove(key, out value);
+               ((ConcurrentStorage<TKey, TValue>)storage).Remove(key, out value);
     }
 
     public bool TryRemove<TValue>(TKey key, [MaybeNullWhen(false)] out TValue value)
