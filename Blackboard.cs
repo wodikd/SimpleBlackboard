@@ -4,7 +4,7 @@ using System.Diagnostics.CodeAnalysis; // 추가
 
 namespace SimpleBlackboard;
 
-public class Blackboard<TKey> where TKey : notnull
+public class Blackboard<TKey> : IBlackboard<TKey> where TKey : notnull
 {
     private readonly Dictionary<Type, IStorage> _buckets = new();
 
@@ -67,6 +67,20 @@ public class Blackboard<TKey> where TKey : notnull
         {
             storage.Clear();
         }
+    }
+    
+    public IEnumerable<Type> GetRegisteredTypes() => _buckets.Keys;
+
+    public bool TryGetStorage<TValue>([MaybeNullWhen(false)] out IReadOnlyDictionary<TKey, TValue> dictionary)
+    {
+        if (_buckets.TryGetValue(typeof(TValue), out var storage))
+        {
+            dictionary = (IReadOnlyDictionary<TKey, TValue>)((Storage<TKey, TValue>)storage).Data;
+            return true;
+        }
+
+        dictionary = null;
+        return false;
     }
 
     private Storage<TKey, TValue> GetOrCreateStorage<TValue>() 

@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 
 namespace SimpleBlackboard;
 
-public class ConcurrentBlackboard<TKey> where TKey : notnull
+public class ConcurrentBlackboard<TKey> : IBlackboard<TKey> where TKey : notnull
 {
     private readonly ConcurrentDictionary<Type, IStorage> _buckets = new();
 
@@ -26,6 +28,11 @@ public class ConcurrentBlackboard<TKey> where TKey : notnull
     public bool ContainsKey<TValue>(TKey key)
     {
         return _buckets.TryGetValue(typeof(TValue), out var storage) && ((ConcurrentStorage<TKey, TValue>)storage).ContainsKey(key);
+    }
+
+    public bool Remove<TValue>(TKey key)
+    {
+        return _buckets.TryGetValue(typeof(TValue), out var storage) && ((ConcurrentStorage<TKey, TValue>)storage).Remove(key, out _);
     }
 
     public bool Remove<TValue>(TKey key, [MaybeNullWhen(false)] out TValue value)
@@ -60,6 +67,20 @@ public class ConcurrentBlackboard<TKey> where TKey : notnull
         {
             storage.Clear();
         }
+    }
+    
+    public IEnumerable<Type> GetRegisteredTypes() => _buckets.Keys;
+
+    public bool TryGetStorage<TValue>([MaybeNullWhen(false)] out IReadOnlyDictionary<TKey, TValue> dictionary)
+    {
+        if (_buckets.TryGetValue(typeof(TValue), out var storage))
+        {
+            dictionary = (IReadOnlyDictionary<TKey, TValue>)((ConcurrentStorage<TKey, TValue>)storage).Data;
+            return true;
+        }
+
+        dictionary = null;
+        return false;
     }
 
     private ConcurrentStorage<TKey, TValue> GetOrCreateStorage<TValue>() 
