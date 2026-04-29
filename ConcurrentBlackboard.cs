@@ -5,86 +5,19 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace SimpleBlackboard;
 
-public class ConcurrentBlackboard<TKey> : IBlackboard<TKey> where TKey : notnull
+public class ConcurrentBlackboard<TKey> : BlackboardBase<TKey> where TKey : notnull
 {
-    private readonly ConcurrentDictionary<Type, IStorage> _buckets = new();
+    private readonly ConcurrentDictionary<Type, IStorage<TKey>> _buckets = new();
 
-    public void Set<TValue>(TKey key, TValue value)
+    internal override bool TryGetStorageObject(Type type, [MaybeNullWhen(false)] out IStorage<TKey> storage) 
+        => _buckets.TryGetValue(type, out storage);
+
+    internal override IStorage<TKey, TValue> GetOrCreateStorage<TValue>()
     {
-        GetOrCreateStorage<TValue>().Set(key, value);
+        return (IStorage<TKey, TValue>)_buckets.GetOrAdd(typeof(TValue), _ => new ConcurrentStorage<TKey, TValue>());
     }
 
-    public bool TryGet<TValue>(TKey key, [MaybeNullWhen(false)] out TValue value)
-    {
-        if (_buckets.TryGetValue(typeof(TValue), out var storage))
-        {
-            return ((ConcurrentStorage<TKey, TValue>)storage).TryGet(key, out value);
-        }
+    internal override IEnumerable<IStorage<TKey>> GetAllStorages() => _buckets.Values;
 
-        value = default;
-        return false;
-    }
-
-    public bool ContainsKey<TValue>(TKey key)
-    {
-        return _buckets.TryGetValue(typeof(TValue), out var storage) && ((ConcurrentStorage<TKey, TValue>)storage).ContainsKey(key);
-    }
-
-    public bool Remove<TValue>(TKey key)
-    {
-        return _buckets.TryGetValue(typeof(TValue), out var storage) && ((ConcurrentStorage<TKey, TValue>)storage).Remove(key, out _);
-    }
-
-    public bool Remove<TValue>(TKey key, [MaybeNullWhen(false)] out TValue value)
-    {
-        value = default;
-        return _buckets.TryGetValue(typeof(TValue), out var storage) &&
-               ((ConcurrentStorage<TKey, TValue>)storage).Remove(key, out value);
-    }
-
-    public bool TryRemove<TValue>(TKey key, [MaybeNullWhen(false)] out TValue value)
-    {
-        if (_buckets.TryGetValue(typeof(TValue), out var storage))
-        {
-            return ((ConcurrentStorage<TKey, TValue>)storage).TryRemove(key, out value);
-        }
-        
-        value = default;
-        return false;
-    }
-
-    public void Clear<TValue>()
-    {
-        if (_buckets.TryGetValue(typeof(TValue), out var storage))
-        {
-            storage.Clear();
-        }
-    }
-
-    public void ClearAll()
-    {
-        foreach (var storage in _buckets.Values)
-        {
-            storage.Clear();
-        }
-    }
-    
-    public IEnumerable<Type> GetRegisteredTypes() => _buckets.Keys;
-
-    public bool TryGetStorage<TValue>([MaybeNullWhen(false)] out IReadOnlyDictionary<TKey, TValue> dictionary)
-    {
-        if (_buckets.TryGetValue(typeof(TValue), out var storage))
-        {
-            dictionary = (IReadOnlyDictionary<TKey, TValue>)((ConcurrentStorage<TKey, TValue>)storage).Data;
-            return true;
-        }
-
-        dictionary = null;
-        return false;
-    }
-
-    private ConcurrentStorage<TKey, TValue> GetOrCreateStorage<TValue>() 
-    {
-        return (ConcurrentStorage<TKey, TValue>)_buckets.GetOrAdd(typeof(TValue), _ => new ConcurrentStorage<TKey, TValue>());
-    }
+    public override IEnumerable<Type> GetRegisteredTypes() => _buckets.Keys;
 }

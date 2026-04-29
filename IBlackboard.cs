@@ -14,6 +14,7 @@ public interface IBlackboard<TKey> where TKey : notnull
     bool TryRemove<TValue>(TKey key, [MaybeNullWhen(false)] out TValue value);
     void Clear<TValue>();
     void ClearAll();
+    void CopyTo(IBlackboard<TKey> destination);
     IEnumerable<Type> GetRegisteredTypes();
     bool TryGetStorage<TValue>([MaybeNullWhen(false)] out IReadOnlyDictionary<TKey, TValue> dictionary);
 }
